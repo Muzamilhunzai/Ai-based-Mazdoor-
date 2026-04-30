@@ -1,0 +1,10 @@
+{
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(auth)/signup/page": "app/(auth)/signup/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js",
+  "/dashboard/worker/page": "app/dashboard/worker/page.js",
+  "/dashboard/worker/incoming/page": "app/dashboard/worker/incoming/page.js",
+  "/dashboard/worker/active/page": "app/dashboard/worker/active/page.js",
+  "/dashboard/customer/page": "app/dashboard/customer/page.js"
+}
