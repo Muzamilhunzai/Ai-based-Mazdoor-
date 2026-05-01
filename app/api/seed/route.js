@@ -1,4 +1,5 @@
 // app/api/seed/route.js
+export const dynamic = "force-dynamic";
 import { db } from "@/lib/firebase";
 import { doc, setDoc, collection, getDocs, writeBatch } from "firebase/firestore";
 
