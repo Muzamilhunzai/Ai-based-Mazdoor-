@@ -1,5 +1,5 @@
 'use client';
-
+export const dynamic = "force-dynamic";
 import { motion, useScroll, useSpring, useMotionValue, useTransform } from 'framer-motion';
 import { 
   ArrowRight, Shield, Star, Users, Zap, MapPin, 
