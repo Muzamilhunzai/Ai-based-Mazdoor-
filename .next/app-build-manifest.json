@@ -31,20 +31,15 @@
       "static/chunks/main-app.js",
       "static/chunks/app/_not-found/page.js"
     ],
-    "/(auth)/login/page": [
+    "/dashboard/customer/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(auth)/login/page.js"
+      "static/chunks/app/dashboard/customer/page.js"
     ],
-    "/(auth)/signup/page": [
+    "/dashboard/customer/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(auth)/signup/page.js"
-    ],
-    "/dashboard/worker/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/worker/page.js"
+      "static/chunks/app/dashboard/customer/layout.js"
     ],
     "/dashboard/layout": [
       "static/chunks/webpack.js",
@@ -56,25 +51,20 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/loading.js"
     ],
-    "/dashboard/worker/incoming/page": [
+    "/dashboard/worker/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/worker/incoming/page.js"
+      "static/chunks/app/dashboard/worker/page.js"
     ],
-    "/dashboard/worker/active/page": [
+    "/dashboard/customer/job-post/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/worker/active/page.js"
+      "static/chunks/app/dashboard/customer/job-post/page.js"
     ],
-    "/dashboard/customer/page": [
+    "/dashboard/customer/messages/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/customer/page.js"
-    ],
-    "/dashboard/customer/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/customer/layout.js"
+      "static/chunks/app/dashboard/customer/messages/page.js"
     ]
   }
 }
