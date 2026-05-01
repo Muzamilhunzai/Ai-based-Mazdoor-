@@ -103,6 +103,12 @@ export function AuthProvider({ children }) {
         localStorage.setItem("demo_user", JSON.stringify(demoUser));
         setUser({ uid: demoUser.uid, email: demoUser.email, isDemo: true });
         setProfile(demoUser);
+        
+        // Sync with Firestore (Background/Graceful)
+        setDoc(doc(db, "users", demoUser.uid), demoUser, { merge: true }).catch(err => {
+          console.warn("Demo Customer sync failed (likely Firestore rules):", err);
+        });
+
         toast.success("Welcome back, Demo Customer!");
         return "customer";
       }
@@ -112,6 +118,18 @@ export function AuthProvider({ children }) {
         localStorage.setItem("demo_user", JSON.stringify(demoWorker));
         setUser({ uid: demoWorker.uid, email: demoWorker.email, isDemo: true });
         setProfile(demoWorker);
+
+        // Sync with Firestore (Background/Graceful)
+        const syncWorker = async () => {
+          try {
+            await setDoc(doc(db, "users", demoWorker.uid), demoWorker, { merge: true });
+            await setDoc(doc(db, "workers", demoWorker.uid), demoWorker, { merge: true });
+          } catch (err) {
+            console.warn("Demo Worker sync failed (likely Firestore rules):", err);
+          }
+        };
+        syncWorker();
+
         toast.success("Welcome back, Demo Worker!");
         return "worker";
       }

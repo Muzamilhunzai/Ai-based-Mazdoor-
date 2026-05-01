@@ -34,7 +34,7 @@ import JobTracker from '@/components/JobTracker';
 import ReviewModal from '@/components/ReviewModal';
 
 export default function WorkerActiveJobs() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [chatJob, setChatJob] = useState(null);
@@ -42,7 +42,18 @@ export default function WorkerActiveJobs() {
   const [reviewJob, setReviewJob] = useState(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // Handle Demo Mode
+    if (user.isDemo && false) { // Removed bypass to allow real interaction
+      setJobs([]); 
+      setLoading(false);
+      return;
+    }
 
     // Fetch jobs where this worker is accepted or in progress
     const q = query(
@@ -56,10 +67,13 @@ export default function WorkerActiveJobs() {
       const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setJobs(data);
       setLoading(false);
+    }, (error) => {
+      console.error("Active jobs snapshot error:", error);
+      setLoading(false);
     });
 
     return () => unsub();
-  }, [user]);
+  }, [user, authLoading]);
 
   const handleMarkComplete = async (job) => {
     if (!window.confirm('Mark this job as completed?')) return;

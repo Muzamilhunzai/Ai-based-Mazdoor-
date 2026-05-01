@@ -30,13 +30,24 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
 
 export default function WorkerIncomingJobs() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null); // track which job is being accepted/rejected
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // Handle Demo Mode
+    if (user.isDemo && false) { // Removed bypass to allow real interaction
+      setJobs([]); 
+      setLoading(false);
+      return;
+    }
 
     // Query jobs where THIS worker is assigned and status is "pending"
     const q = query(
@@ -64,7 +75,7 @@ export default function WorkerIncomingJobs() {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, authLoading]);
 
   const handleAccept = async (jobId) => {
     setActionLoading(jobId);

@@ -2,59 +2,129 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================
+   GOOGLE FONT
+========================= */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+
+/* =========================
+   DESIGN TOKENS
+========================= */
+@layer base {
+  :root {
+    --background: #fafdf9;
+    --on-background: #1a1c19;
+
+    --surface-variant: #dee5d8;
+
+    --primary: #2e6b2e;
+    --on-primary: #ffffff;
+    --primary-container: #b0f2af;
+    --on-primary-container: #002204;
+
+    --secondary: #53634e;
+    --on-secondary: #ffffff;
+
+    --error: #ba1a1a;
+
+    --outline: #72796f;
+    --outline-variant: #c2c9bc;
+  }
+
+  .dark {
+    --background: #1a1c19;
+    --on-background: #e2e3de;
+
+    --surface-variant: #42493f;
+
+    --primary: #95d895;
+    --on-primary: #00390a;
+    --primary-container: #115219;
+    --on-primary-container: #b0f2af;
+
+    --secondary: #bbc5b5;
+    --on-secondary: #253424;
+
+    --error: #ffb4ab;
+
+    --outline: #8c9388;
+    --outline-variant: #42493f;
+  }
+}
+
+/* =========================
+   BASE STYLES
+========================= */
 @layer base {
   html {
     scroll-behavior: smooth;
   }
+
   body {
-    @apply bg-background text-text font-inter antialiased;
-  }
-  .dark body {
-    @apply bg-slate-900 text-slate-100;
+    @apply bg-background text-on-background font-inter antialiased;
   }
 }
 
+/* =========================
+   COMPONENTS
+========================= */
 @layer components {
-  .glass-card {
-    @apply bg-white/70 backdrop-blur-lg border border-white/40 shadow-tonal-lift rounded-xl;
+
+  .btn-primary {
+    @apply bg-primary text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 active:scale-95 hover:opacity-90;
   }
-  .dark .glass-card {
-    @apply bg-slate-800/70 border-slate-700/40;
+
+  .btn-secondary {
+    @apply bg-secondary text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 active:scale-95 hover:opacity-90;
   }
+
+  .btn-outline {
+    @apply border-2 border-primary text-primary px-6 py-3 rounded-xl font-medium transition-all active:scale-95 hover:bg-primary hover:text-white;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white;
+  }
+
   .urdu-text {
     @apply font-urdu text-right leading-loose;
   }
-  .btn-primary {
-    @apply bg-primary text-white px-6 py-3 rounded-xl font-medium hover:bg-primary/90 transition-all duration-200 active:scale-95;
+
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-lg border border-white/40 shadow-xl rounded-xl;
   }
-  .btn-secondary {
-    @apply bg-secondary text-white px-6 py-3 rounded-xl font-medium hover:bg-secondary/90 transition-all duration-200 active:scale-95;
+
+  .dark .glass-card {
+    @apply bg-slate-800/70 border-slate-700/40;
   }
-  .btn-outline {
-    @apply border-2 border-primary text-primary px-6 py-3 rounded-xl font-medium hover:bg-primary hover:text-white transition-all active:scale-95;
-  }
-  .input-field {
-    @apply w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white;
-  }
+
   .section-padding {
     @apply px-4 sm:px-6 lg:px-8 xl:px-12;
   }
 }
 
+/* =========================
+   UTILITIES
+========================= */
 @layer utilities {
+
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
 }
 
-/* Custom Animations */
+/* =========================
+   ANIMATIONS
+========================= */
 @keyframes waving-hand {
   0% { transform: rotate(0deg); }
   10% { transform: rotate(14deg); }

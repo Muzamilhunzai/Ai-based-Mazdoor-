@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -13,18 +14,30 @@ import {
   Bell,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function WorkerLayout({ children }) {
-  const { user, profile, logout } = useAuth();
+  const { user, profile, loading, logout } = useAuth();
   const router = useRouter();
 
-  if (!user) {
-    router.push("/login");
-    return null;
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+    if (!loading && profile?.role && profile.role !== "worker") {
+      router.push("/dashboard/customer");
+    }
+  }, [user, profile, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner label="Securing your session…" />
+      </div>
+    );
   }
 
-  if (profile?.role && profile.role !== "worker") {
-    router.push("/dashboard/customer");
+  if (!user || (profile?.role && profile.role !== "worker")) {
     return null;
   }
 

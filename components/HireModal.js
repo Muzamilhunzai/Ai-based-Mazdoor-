@@ -2,18 +2,60 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, Clock, DollarSign } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/context/AuthContext';
 
-export default function HireModal({ worker, isOpen, onClose, customerId }) {
+export default function HireModal({ worker, isOpen, onClose }) {
+  const { user, profile } = useAuth();
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [negotiate, setNegotiate] = useState(false);
   const [offerPrice, setOfferPrice] = useState(worker?.hourlyRate || 0);
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleHire = async () => {
-    // In production, submit to Firestore
-    toast.success('Hiring request sent!');
-    onClose();
+    if (!user) {
+      toast.error('Please login to hire a worker');
+      return;
+    }
+
+    if (!date || !offerPrice) {
+      toast.error('Please fill in the date and budget');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const jobData = {
+        customerId: user.uid,
+        customerName: profile?.name || 'Customer',
+        workerId: worker.uid,
+        workerName: worker.name,
+        skill: worker.skill,
+        status: 'pending',
+        scheduledDate: date,
+        scheduledTime: time || 'Flexible',
+        price: Number(offerPrice),
+        budget: Number(offerPrice),
+        description: message,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        location: profile?.location || 'Unknown',
+        address: profile?.address || '',
+      };
+
+      await addDoc(collection(db, 'jobs'), jobData);
+      
+      toast.success('Hiring request sent successfully!');
+      onClose();
+    } catch (error) {
+      console.error('Hiring error:', error);
+      toast.error('Failed to send request. Try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!worker) return null;

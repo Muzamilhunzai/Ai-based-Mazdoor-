@@ -31,7 +31,7 @@ import toast from "react-hot-toast";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function WorkerDashboard() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const [worker, setWorker] = useState(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -42,10 +42,18 @@ export default function WorkerDashboard() {
   });
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     const unsub = onSnapshot(doc(db, "workers", user.uid), (snap) => {
       if (snap.exists()) {
         setWorker({ id: snap.id, ...snap.data() });
+      } else if (user.isDemo) {
+        // Fallback for demo user if doc doesn't exist yet (though it should be synced now)
+        setWorker(profile);
       } else {
         const defaultWorker = {
           uid: user.uid,
@@ -67,12 +75,22 @@ export default function WorkerDashboard() {
         setWorker(defaultWorker);
       }
       setLoading(false);
+    }, (error) => {
+      console.error("Worker snapshot error:", error);
+      if (user.isDemo) {
+        setWorker(profile);
+        setLoading(false);
+      } else {
+        toast.error("Failed to load worker profile");
+        setLoading(false);
+      }
     });
     return () => unsub();
-  }, [user]);
+  }, [user, authLoading, profile]);
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading || !user) return;
+
     const q = query(
       collection(db, "jobs"),
       where("workerId", "==", user.uid)
@@ -90,15 +108,29 @@ export default function WorkerDashboard() {
           }
         }
       });
-      setStats({
-        completed,
-        earnings,
-        rating: reviewCount > 0 ? (totalRating / reviewCount).toFixed(1) : worker?.rating || 0,
-        reviews: reviewCount,
-      });
+
+      // If it's a demo user and they have 0 jobs in Firestore, maybe show their mock stats
+      // but if they have real jobs, show real stats.
+      if (user.isDemo && snapshot.empty) {
+        setStats({
+          completed: profile.jobsCompleted || 0,
+          earnings: profile.totalEarnings || 0,
+          rating: profile.rating || 0,
+          reviews: profile.reviewCount || 0,
+        });
+      } else {
+        setStats({
+          completed,
+          earnings,
+          rating: reviewCount > 0 ? (totalRating / reviewCount).toFixed(1) : worker?.rating || 0,
+          reviews: reviewCount,
+        });
+      }
+    }, (error) => {
+      console.error("Jobs snapshot error:", error);
     });
     return () => unsub();
-  }, [user, worker]);
+  }, [user, authLoading, worker?.rating, profile]);
 
   const toggleOnline = async () => {
     if (!worker) return;
