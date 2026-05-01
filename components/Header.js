@@ -22,6 +22,7 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
           <Link href="/dashboard/customer" className="hover:text-primary transition-colors">Find Workers</Link>
           <Link href="/dashboard/worker" className="hover:text-primary transition-colors">Find Work</Link>
+          <Link href="/about" className="hover:text-primary transition-colors">About</Link>
         </nav>
 
         {/* Right side */}
@@ -56,6 +57,7 @@ export default function Header() {
         <div className="md:hidden bg-background border-t border-outline-variant/20 p-4 space-y-3">
           <Link href="/dashboard/customer" className="block text-sm font-medium hover:text-primary" onClick={() => setOpen(false)}>Find Workers</Link>
           <Link href="/dashboard/worker" className="block text-sm font-medium hover:text-primary" onClick={() => setOpen(false)}>Find Work</Link>
+          <Link href="/about" className="block text-sm font-medium hover:text-primary" onClick={() => setOpen(false)}>About</Link>
           {user ? (
             <button onClick={() => { logout(); setOpen(false); }} className="text-sm text-error flex items-center gap-1">
               <LogOut size={14} /> Sign out

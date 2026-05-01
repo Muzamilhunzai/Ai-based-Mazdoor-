@@ -11,6 +11,8 @@ import {
   LogOut,
 } from "lucide-react";
 
+import toast from "react-hot-toast";
+
 export default function CustomerLayout({ children }) {
   const { user, profile, logout } = useAuth();
   const router = useRouter();
@@ -25,6 +27,8 @@ export default function CustomerLayout({ children }) {
     router.push("/dashboard/worker");
     return null;
   }
+
+  const handleComingSoon = () => toast("Profile coming soon!");
 
   return (
     <div className="flex min-h-screen pb-16 lg:pb-0">
@@ -43,9 +47,13 @@ export default function CustomerLayout({ children }) {
           <SidebarLink href="/dashboard/customer/messages" icon={<MessageSquare size={18} />}>
             Messages
           </SidebarLink>
-          <SidebarLink href="/dashboard/profile" icon={<User size={18} />}>
+          <button
+            onClick={handleComingSoon}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-on-surface-variant hover:bg-primary/5 hover:text-primary transition"
+          >
+            <User size={18} />
             Profile
-          </SidebarLink>
+          </button>
         </nav>
         <button
           onClick={() => logout()}
@@ -65,7 +73,13 @@ export default function CustomerLayout({ children }) {
         <MobileNav href="/dashboard/customer" icon={<LayoutDashboard size={20} />} label="Home" />
         <MobileNav href="/dashboard/customer/job-post" icon={<Briefcase size={20} />} label="Post" />
         <MobileNav href="/dashboard/customer/messages" icon={<MessageSquare size={20} />} label="Chats" />
-        <MobileNav href="/dashboard/profile" icon={<User size={20} />} label="Profile" />
+        <button
+          onClick={handleComingSoon}
+          className="flex flex-col items-center gap-1 text-xs text-outline hover:text-primary transition"
+        >
+          <User size={20} />
+          <span>Profile</span>
+        </button>
       </nav>
     </div>
   );

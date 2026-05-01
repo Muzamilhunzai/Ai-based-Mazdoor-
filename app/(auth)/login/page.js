@@ -1,4 +1,3 @@
-// app/(auth)/login/page.js
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -36,19 +35,58 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await googleSignIn(); // will redirect back automatically
+      await googleSignIn(); 
     } catch (err) {
       setError(err.message);
       setLoading(false);
     }
   };
 
+  const loginAsDemo = async (role) => {
+    setLoading(true);
+    setError("");
+    const demoEmail = role === 'worker' ? 'worker@demo.com' : 'customer@demo.com';
+    const demoPassword = 'password123';
+
+    try {
+      const userRole = await login(demoEmail, demoPassword);
+      router.push(userRole === "worker" ? "/dashboard/worker" : "/dashboard/customer");
+    } catch (err) {
+      setError(err.message || "Demo login failed. Please try again.");
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-10">
       <div className="glass-card w-full max-w-md p-8 space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-black text-primary">Mazdoor Market</h1>
           <p className="text-sm text-outline mt-1">Sign in to your account</p>
+        </div>
+
+        {/* Demo Logins */}
+        <div className="grid grid-cols-2 gap-3">
+          <button 
+            onClick={() => loginAsDemo('customer')}
+            className="flex flex-col items-center gap-1 p-3 bg-primary/5 border border-primary/20 rounded-2xl hover:bg-primary/10 transition group"
+          >
+            <span className="text-xs font-bold text-primary uppercase">Demo</span>
+            <span className="text-sm font-black text-on-surface">Customer</span>
+          </button>
+          <button 
+            onClick={() => loginAsDemo('worker')}
+            className="flex flex-col items-center gap-1 p-3 bg-secondary/5 border border-secondary/20 rounded-2xl hover:bg-secondary/10 transition group"
+          >
+            <span className="text-xs font-bold text-secondary uppercase">Demo</span>
+            <span className="text-sm font-black text-on-surface">Worker</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-outline-variant" />
+          <span className="text-xs text-outline font-medium uppercase tracking-widest">or</span>
+          <div className="flex-1 h-px bg-outline-variant" />
         </div>
 
         {error && (
@@ -72,12 +110,6 @@ export default function LoginPage() {
           Continue with Google
         </button>
 
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-outline-variant" />
-          <span className="text-xs text-outline font-medium">or with email</span>
-          <div className="flex-1 h-px bg-outline-variant" />
-        </div>
-
         <form onSubmit={handleEmailLogin} className="space-y-4">
           <div className="relative">
             <Mail className="absolute left-3 top-3.5 w-5 h-5 text-outline" />
@@ -86,7 +118,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email address"
-              className="w-full pl-10 py-3 bg-surface-container-low rounded-full outline-none placeholder:text-outline-variant"
+              className="input-field pl-10"
               required
             />
           </div>
@@ -97,14 +129,14 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              className="w-full pl-10 py-3 bg-surface-container-low rounded-full outline-none placeholder:text-outline-variant"
+              className="input-field pl-10"
               required
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-primary text-white rounded-full font-bold flex items-center justify-center gap-2 hover:bg-primary-container transition disabled:opacity-60"
+            className="btn-primary w-full flex items-center justify-center gap-2"
           >
             {loading ? "Signing in..." : <><LogIn size={18} /> Sign in</>}
           </button>

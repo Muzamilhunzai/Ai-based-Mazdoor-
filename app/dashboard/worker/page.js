@@ -1,4 +1,3 @@
-// app/dashboard/worker/page.js
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,7 +5,6 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import {
   doc,
-  getDoc,
   setDoc,
   onSnapshot,
   collection,
@@ -26,6 +24,7 @@ import {
   MapPin,
   Clock,
   Edit,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -42,14 +41,12 @@ export default function WorkerDashboard() {
     reviews: 0,
   });
 
-  // Fetch worker profile from Firestore in real-time
   useEffect(() => {
     if (!user) return;
     const unsub = onSnapshot(doc(db, "workers", user.uid), (snap) => {
       if (snap.exists()) {
         setWorker({ id: snap.id, ...snap.data() });
       } else {
-        // Create a default worker doc if it doesn't exist
         const defaultWorker = {
           uid: user.uid,
           skill: "",
@@ -74,7 +71,6 @@ export default function WorkerDashboard() {
     return () => unsub();
   }, [user]);
 
-  // Calculate live stats from jobs collection
   useEffect(() => {
     if (!user) return;
     const q = query(
@@ -82,10 +78,7 @@ export default function WorkerDashboard() {
       where("workerId", "==", user.uid)
     );
     const unsub = onSnapshot(q, (snapshot) => {
-      let completed = 0,
-        earnings = 0,
-        totalRating = 0,
-        reviewCount = 0;
+      let completed = 0, earnings = 0, totalRating = 0, reviewCount = 0;
       snapshot.forEach((doc) => {
         const data = doc.data();
         if (data.status === "completed") {
@@ -107,7 +100,6 @@ export default function WorkerDashboard() {
     return () => unsub();
   }, [user, worker]);
 
-  // Toggle online/offline status
   const toggleOnline = async () => {
     if (!worker) return;
     const newStatus = !worker.isOnline;
@@ -123,6 +115,37 @@ export default function WorkerDashboard() {
     }
   };
 
+  const generateBio = async () => {
+    if (!worker?.skill || !worker?.location) {
+      toast.error("Please set your skill and location first!");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai/bio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profile?.name,
+          skill: worker.skill,
+          experience: worker.experience,
+          location: worker.location,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const fullBio = `${data.bio.english}\n\n${data.bio.urdu}`;
+        await setDoc(doc(db, "workers", user.uid), { bio: fullBio }, { merge: true });
+        toast.success("AI Bio generated and saved!");
+      }
+    } catch (err) {
+      toast.error("Failed to generate bio");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -133,7 +156,6 @@ export default function WorkerDashboard() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto pb-20 md:pb-10">
-      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -151,7 +173,7 @@ export default function WorkerDashboard() {
           onClick={toggleOnline}
           className={`self-start px-6 py-3 rounded-full font-bold flex items-center gap-2 transition ${
             worker?.isOnline
-              ? "bg-green-500 text-white shadow-lg"
+              ? "bg-green-500 text-white shadow-lg shadow-green-500/20"
               : "bg-surface-container-low text-outline border border-outline-variant"
           }`}
         >
@@ -167,7 +189,32 @@ export default function WorkerDashboard() {
         </button>
       </motion.div>
 
-      {/* Stats Cards */}
+      {!worker?.bio && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-gradient-to-r from-primary to-secondary p-1 rounded-2xl shadow-xl"
+        >
+          <div className="bg-white dark:bg-slate-900 rounded-[14px] p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                <Sparkles className="w-7 h-7" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black">Complete your Profile with AI</h3>
+                <p className="text-sm text-outline">Let Gemini write a professional bio for you in English & Urdu.</p>
+              </div>
+            </div>
+            <button 
+              onClick={generateBio}
+              className="w-full md:w-auto px-6 py-3 bg-primary text-white rounded-full font-bold flex items-center justify-center gap-2 hover:bg-primary-container transition shadow-lg shadow-primary/20"
+            >
+              <Sparkles size={18} /> Generate AI Bio
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           icon={<CheckCircle className="w-5 h-5 text-primary" />}
@@ -191,7 +238,6 @@ export default function WorkerDashboard() {
         />
       </div>
 
-      {/* Quick Links */}
       <div className="grid md:grid-cols-2 gap-4">
         <Link
           href="/dashboard/worker/incoming"
@@ -217,7 +263,6 @@ export default function WorkerDashboard() {
         </Link>
       </div>
 
-      {/* Profile Summary */}
       <div className="glass-card p-6 rounded-xl">
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
           <User size={18} /> Your Profile

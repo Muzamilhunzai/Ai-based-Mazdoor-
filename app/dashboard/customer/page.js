@@ -1,4 +1,3 @@
-// app/(dashboard)/customer/page.js
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -20,22 +19,14 @@ import {
   ShieldCheck,
   ChevronRight,
 } from "lucide-react";
-import { db } from "@/lib/firebase";
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit,
-} from "firebase/firestore";
 import { toast } from "react-hot-toast";
+
+import SOSButton from "@/components/SOSButton";
+import VoiceAssistant from "@/components/VoiceAssistant";
 
 export default function CustomerDashboard() {
   const { profile } = useAuth();
-
   const [workers, setWorkers] = useState([]);
-  const [featuredWorkers, setFeaturedWorkers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [showHireModal, setShowHireModal] = useState(false);
@@ -43,31 +34,11 @@ export default function CustomerDashboard() {
   const [source, setSource] = useState(null);
   const [city, setCity] = useState(profile?.location || "Lahore");
 
-  useEffect(() => {
-    fetchFeatured();
-  }, []);
-
-  const fetchFeatured = async () => {
-    try {
-      const q = query(
-        collection(db, "workers"),
-        where("isOnline", "==", true),
-        orderBy("rating", "desc"),
-        limit(8)
-      );
-      const snap = await getDocs(q);
-      setFeaturedWorkers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    } catch (err) {
-      console.warn("Featured workers fetch failed:", err.message);
-      setFeaturedWorkers([]);
-    }
-  };
-
   const handleSearch = useCallback(
-    async (query, filters) => {
-      if (!query.trim()) return;
+    async (queryInput) => {
+      if (!queryInput?.trim()) return;
       setLoading(true);
-      setSearchQuery(query);
+      setSearchQuery(queryInput);
       setWorkers([]);
       setSource(null);
 
@@ -75,30 +46,24 @@ export default function CustomerDashboard() {
         const res = await fetch("/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ input: query }),
+          body: JSON.stringify({ input: queryInput }),
         });
         const data = await res.json();
-        if (!data.success) throw new Error(data.error);
+        
+        if (!data.success) throw new Error(data.error || "AI Search failed");
+
         setWorkers(data.workers || []);
         setSource(data.source || "ai");
-      } catch (apiErr) {
-        console.warn("AI search failed, local fallback:", apiErr.message);
-        try {
-          const snap = await getDocs(collection(db, "workers"));
-          let all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-          const qLower = query.toLowerCase();
-          all = all.filter(
-            (w) =>
-              w.skill?.toLowerCase().includes(qLower) ||
-              w.location?.toLowerCase().includes(qLower) ||
-              w.bio?.toLowerCase().includes(qLower)
-          );
-          setWorkers(all);
-          setSource("fallback");
-        } catch (fbErr) {
-          setWorkers([]);
-          toast.error("Search failed. Please try again.");
+        
+        if (data.workers?.length === 0) {
+           toast.error("No workers found for your request.");
+        } else {
+           toast.success(`Found ${data.workers.length} matches!`);
         }
+      } catch (apiErr) {
+        console.warn("AI search failed:", apiErr.message);
+        setWorkers([]);
+        toast.error("Search failed. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -107,7 +72,7 @@ export default function CustomerDashboard() {
   );
 
   const handleCategorySelect = (category) => {
-    handleSearch(category.name, { category: category.id });
+    handleSearch(category.name);
   };
 
   const handleHire = (worker) => {
@@ -117,6 +82,10 @@ export default function CustomerDashboard() {
 
   return (
     <div className="space-y-6 md:space-y-8 min-h-screen pb-20 md:pb-0">
+      {/* Voice and SOS */}
+      <VoiceAssistant onResult={(text) => handleSearch(text)} />
+      <SOSButton />
+
       {/* Top Navigation */}
       <nav className="flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-40 px-6 py-3 border-b border-outline-variant/10">
         <div className="flex items-center gap-4">
@@ -179,11 +148,7 @@ export default function CustomerDashboard() {
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold flex items-center gap-2">
-                {source === "ai" ? (
-                  <Sparkles className="w-5 h-5 text-secondary" />
-                ) : (
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                )}
+                <Sparkles className="w-5 h-5 text-secondary" />
                 Top matches for &quot;{searchQuery}&quot;
               </h2>
               {source && (
@@ -231,18 +196,15 @@ export default function CustomerDashboard() {
                 </h2>
                 <span className="font-urdu text-primary text-lg">نمایاں مزدور</span>
               </div>
-              {featuredWorkers.length > 0 ? (
-                <WorkerGrid workers={featuredWorkers} onHire={handleHire} />
-              ) : (
-                <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                  {[...Array(4)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="w-[240px] shrink-0 h-64 bg-surface-container-low rounded-xl animate-pulse"
-                    />
-                  ))}
-                </div>
-              )}
+              {/* Featured workers would normally be fetched here, using static mock for now */}
+              <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                {[...Array(4)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-[240px] shrink-0 h-64 bg-surface-container-low rounded-xl animate-pulse"
+                  />
+                ))}
+              </div>
             </section>
 
             {/* Trust Banner */}

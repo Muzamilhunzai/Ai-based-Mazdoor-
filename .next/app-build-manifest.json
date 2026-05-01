@@ -31,6 +31,11 @@
       "static/chunks/main-app.js",
       "static/chunks/app/_not-found/page.js"
     ],
+    "/about/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/about/page.js"
+    ],
     "/dashboard/customer/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -56,15 +61,15 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/worker/page.js"
     ],
-    "/dashboard/customer/job-post/page": [
+    "/dashboard/worker/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/customer/job-post/page.js"
+      "static/chunks/app/dashboard/worker/layout.js"
     ],
-    "/dashboard/customer/messages/page": [
+    "/(auth)/login/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/customer/messages/page.js"
+      "static/chunks/app/(auth)/login/page.js"
     ]
   }
 }
