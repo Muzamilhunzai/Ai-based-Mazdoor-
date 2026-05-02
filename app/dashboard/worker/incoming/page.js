@@ -1,6 +1,8 @@
 // app/dashboard/worker/incoming/page.js
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
