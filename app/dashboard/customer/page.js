@@ -24,15 +24,79 @@ import { toast } from "react-hot-toast";
 import SOSButton from "@/components/SOSButton";
 import VoiceAssistant from "@/components/VoiceAssistant";
 
+import WorkerCard from "@/components/WorkerCard";
+import ChatModal from "@/components/ChatModal";
+import { db } from "@/lib/firebase";
+import { collection, query, where, limit, getDocs, orderBy, getDoc, doc } from "firebase/firestore";
+import { MOCK_WORKERS } from "@/lib/mockData";
+
 export default function CustomerDashboard() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [workers, setWorkers] = useState([]);
+  const [featuredWorkers, setFeaturedWorkers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [showHireModal, setShowHireModal] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [activeChatJob, setActiveChatJob] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [source, setSource] = useState(null);
   const [city, setCity] = useState(profile?.location || "Lahore");
+
+  // Fetch featured workers
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        // 1. Try to fetch verified workers from Firestore
+        const qVerified = query(
+          collection(db, "workers"),
+          where("isVerified", "==", true),
+          limit(6)
+        );
+        const snapshot = await getDocs(qVerified);
+        let fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // 2. If no verified workers, try any workers from Firestore
+        if (fetched.length === 0) {
+          const qAny = query(collection(db, "workers"), limit(6));
+          const anySnapshot = await getDocs(qAny);
+          fetched = anySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        }
+
+        // 3. MANDATORY: Ensure Demo Worker is included
+        const demoWorkerId = "demo-worker-id";
+        const hasDemo = fetched.find(w => w.id === demoWorkerId || w.uid === demoWorkerId);
+        
+        if (!hasDemo) {
+          // Try fetching specifically from Firestore
+          try {
+            const demoDoc = await getDoc(doc(db, "workers", demoWorkerId));
+            if (demoDoc.exists()) {
+              fetched = [{ id: demoDoc.id, ...demoDoc.data() }, ...fetched];
+            } else {
+              // Fallback to Mock Data if Firestore is empty or missing the demo worker
+              const mockDemo = { ...MOCK_WORKERS[0], id: MOCK_WORKERS[0].uid };
+              fetched = [mockDemo, ...fetched];
+              console.log("Using Mock Demo Worker as fallback");
+            }
+          } catch (e) {
+            const mockDemo = { ...MOCK_WORKERS[0], id: MOCK_WORKERS[0].uid };
+            fetched = [mockDemo, ...fetched];
+          }
+        }
+
+        setFeaturedWorkers(fetched);
+      } catch (err) {
+        console.error("Error fetching featured workers:", err);
+        // Absolute fallback to mock data if everything fails
+        setFeaturedWorkers([{ ...MOCK_WORKERS[0], id: MOCK_WORKERS[0].uid }]);
+      } finally {
+        setLoadingFeatured(false);
+      }
+    };
+    fetchFeatured();
+  }, []);
 
   const handleSearch = useCallback(
     async (queryInput) => {
@@ -78,6 +142,23 @@ export default function CustomerDashboard() {
   const handleHire = (worker) => {
     setSelectedWorker(worker);
     setShowHireModal(true);
+  };
+
+  const handleMessage = (worker) => {
+    if (!user) {
+      toast.error("Please login to message a worker");
+      return;
+    }
+    // Create a virtual job object for chat
+    const virtualJob = {
+      id: `chat_${user.uid}_${worker.id || worker.uid}`,
+      workerId: worker.id || worker.uid,
+      workerName: worker.name,
+      customerId: user.uid,
+      customerName: profile?.name || "Customer",
+    };
+    setActiveChatJob(virtualJob);
+    setShowChatModal(true);
   };
 
   return (
@@ -161,7 +242,11 @@ export default function CustomerDashboard() {
             {loading ? (
               <LoadingSpinner label="Finding the best Mazdoors for you…" />
             ) : workers.length > 0 ? (
-              <WorkerGrid workers={workers} onHire={handleHire} />
+              <WorkerGrid 
+                workers={workers} 
+                onHire={handleHire} 
+                onMessage={handleMessage} 
+              />
             ) : (
               <EmptyState
                 icon="search-off"
@@ -196,14 +281,28 @@ export default function CustomerDashboard() {
                 </h2>
                 <span className="font-urdu text-primary text-lg">نمایاں مزدور</span>
               </div>
-              {/* Featured workers would normally be fetched here, using static mock for now */}
-              <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                {[...Array(4)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-[240px] shrink-0 h-64 bg-surface-container-low rounded-xl animate-pulse"
-                  />
-                ))}
+              
+              <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2">
+                {loadingFeatured ? (
+                  [...Array(4)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-[280px] shrink-0 h-64 bg-surface-container-low rounded-xl animate-pulse"
+                    />
+                  ))
+                ) : featuredWorkers.length > 0 ? (
+                  featuredWorkers.map((worker) => (
+                    <div key={worker.id || worker.uid} className="w-[300px] shrink-0">
+                      <WorkerCard 
+                        worker={worker} 
+                        onHire={() => handleHire(worker)} 
+                        onMessage={() => handleMessage(worker)}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-outline text-sm py-4">No featured workers found.</p>
+                )}
               </div>
             </section>
 
@@ -233,6 +332,16 @@ export default function CustomerDashboard() {
         isOpen={showHireModal}
         onClose={() => setShowHireModal(false)}
       />
+
+      {/* Chat Modal */}
+      {showChatModal && (
+        <ChatModal
+          job={activeChatJob}
+          senderId={user?.uid}
+          senderName={profile?.name || "Customer"}
+          onClose={() => setShowChatModal(false)}
+        />
+      )}
     </div>
   );
 }

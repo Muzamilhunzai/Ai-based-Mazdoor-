@@ -97,7 +97,28 @@ export function AuthProvider({ children }) {
   // Login
   const login = async (email, password) => {
     try {
-      // 1. Check for Demo Credentials Locally
+      // 1. Try real Firebase Login first for everything
+      // This allows "demo" accounts to be "real" if they exist in Firebase Auth
+      try {
+        const { user: firebaseUser } = await signInWithEmailAndPassword(auth, email, password);
+        const userProfile = await fetchProfile(firebaseUser);
+        
+        if (userProfile) {
+          setUser(firebaseUser);
+          setProfile(userProfile);
+          toast.success(`Welcome back, ${userProfile.name || 'User'}!`);
+          return userProfile.role;
+        }
+      } catch (authError) {
+        // If it's NOT a demo email, rethrow the error
+        if (email !== "customer@demo.com" && email !== "worker@demo.com") {
+          throw authError;
+        }
+        // If it IS a demo email, we might fall back to mock logic if the user hasn't created the account yet
+        console.warn("Real Auth failed for demo account, falling back to Mock Logic:", authError.message);
+      }
+
+      // 2. Fallback Mock Logic for Demo Credentials (if Auth fails or account not created)
       if (email === "customer@demo.com") {
         const demoUser = DEMO_CUSTOMER;
         localStorage.setItem("demo_user", JSON.stringify(demoUser));
@@ -106,10 +127,10 @@ export function AuthProvider({ children }) {
         
         // Sync with Firestore (Background/Graceful)
         setDoc(doc(db, "users", demoUser.uid), demoUser, { merge: true }).catch(err => {
-          console.warn("Demo Customer sync failed (likely Firestore rules):", err);
+          console.warn("Demo Customer sync failed:", err);
         });
 
-        toast.success("Welcome back, Demo Customer!");
+        toast.success("Welcome (Mock Mode), Demo Customer! Note: Ensure Firestore Rules allow 'demo-customer-id'.");
         return "customer";
       }
 
@@ -122,30 +143,25 @@ export function AuthProvider({ children }) {
         // Sync with Firestore (Background/Graceful)
         const syncWorker = async () => {
           try {
-            await setDoc(doc(db, "users", demoWorker.uid), demoWorker, { merge: true });
+            await setDoc(doc(db, "users", demoWorker.uid), {
+              uid: demoWorker.uid,
+              name: demoWorker.name,
+              email: demoWorker.email,
+              role: demoWorker.role,
+            }, { merge: true });
             await setDoc(doc(db, "workers", demoWorker.uid), demoWorker, { merge: true });
           } catch (err) {
-            console.warn("Demo Worker sync failed (likely Firestore rules):", err);
+            console.warn("Demo Worker sync failed:", err);
           }
         };
         syncWorker();
 
-        toast.success("Welcome back, Demo Worker!");
+        toast.success("Welcome (Mock Mode), Demo Worker! Note: Ensure Firestore Rules allow 'demo-worker-id'.");
         return "worker";
       }
 
-      // 2. Normal Firebase Login
-      const { user: firebaseUser } = await signInWithEmailAndPassword(auth, email, password);
-      const userProfile = await fetchProfile(firebaseUser);
-      
-      if (!userProfile) {
-        throw new Error("Profile not found.");
-      }
-
-      setUser(firebaseUser);
-      setProfile(userProfile);
-      toast.success(`Welcome back, ${userProfile.name || 'User'}!`);
-      return userProfile.role;
+      // If we reach here and it wasn't a demo email, it means login failed normally
+      throw new Error("Invalid credentials or profile not found.");
     } catch (error) {
       const message = error.code === "auth/invalid-credential" 
         ? "Invalid email or password" 

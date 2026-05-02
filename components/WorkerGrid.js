@@ -2,7 +2,7 @@ import WorkerCard from './WorkerCard';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState from './EmptyState';
 
-export default function WorkerGrid({ workers = [], loading, error, onHire }) {
+export default function WorkerGrid({ workers = [], loading, error, onHire, onMessage }) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -22,7 +22,12 @@ export default function WorkerGrid({ workers = [], loading, error, onHire }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {workers.map(worker => (
-        <WorkerCard key={worker.id || worker.uid} worker={worker} onHire={onHire} />
+        <WorkerCard 
+          key={worker.id || worker.uid} 
+          worker={worker} 
+          onHire={onHire} 
+          onMessage={onMessage}
+        />
       ))}
     </div>
   );

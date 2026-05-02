@@ -10,6 +10,7 @@ import {
   collection,
   query,
   where,
+  serverTimestamp,
 } from "firebase/firestore";
 import { motion } from "framer-motion";
 import {
@@ -33,6 +34,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 export default function WorkerDashboard() {
   const { user, profile, loading: authLoading } = useAuth();
   const [worker, setWorker] = useState(null);
+  const [activeJobs, setActiveJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     completed: 0,
@@ -52,42 +54,14 @@ export default function WorkerDashboard() {
       if (snap.exists()) {
         setWorker({ id: snap.id, ...snap.data() });
       } else if (user.isDemo) {
-        // Fallback for demo user if doc doesn't exist yet (though it should be synced now)
         setWorker(profile);
-      } else {
-        const defaultWorker = {
-          uid: user.uid,
-          skill: "",
-          hourlyRate: 0,
-          isVerified: false,
-          rating: 0,
-          reviewCount: 0,
-          location: "",
-          isOnline: false,
-          bio: "",
-          categories: [],
-          portfolio: [],
-          experience: 0,
-          jobsCompleted: 0,
-          totalEarnings: 0,
-        };
-        setDoc(doc(db, "workers", user.uid), defaultWorker).catch(() => {});
-        setWorker(defaultWorker);
       }
       setLoading(false);
-    }, (error) => {
-      console.error("Worker snapshot error:", error);
-      if (user.isDemo) {
-        setWorker(profile);
-        setLoading(false);
-      } else {
-        toast.error("Failed to load worker profile");
-        setLoading(false);
-      }
     });
     return () => unsub();
   }, [user, authLoading, profile]);
 
+  // Combined Stats & Active Jobs Listener
   useEffect(() => {
     if (authLoading || !user) return;
 
@@ -95,55 +69,68 @@ export default function WorkerDashboard() {
       collection(db, "jobs"),
       where("workerId", "==", user.uid)
     );
+    
     const unsub = onSnapshot(q, (snapshot) => {
-      let completed = 0, earnings = 0, totalRating = 0, reviewCount = 0;
+      let completedCount = 0;
+      let totalEarnings = 0;
+      let totalRating = 0;
+      let reviewCount = 0;
+      let ongoing = [];
+
       snapshot.forEach((doc) => {
         const data = doc.data();
+        const jobWithId = { id: doc.id, ...data };
+
         if (data.status === "completed") {
-          completed++;
-          earnings += data.price || 0;
+          completedCount++;
+          totalEarnings += Number(data.price || 0);
           if (data.rating) {
             totalRating += data.rating;
             reviewCount++;
           }
+        } else if (data.status === "accepted" || data.status === "in_progress") {
+          ongoing.push(jobWithId);
         }
       });
 
-      // If it's a demo user and they have 0 jobs in Firestore, maybe show their mock stats
-      // but if they have real jobs, show real stats.
-      if (user.isDemo && snapshot.empty) {
-        setStats({
-          completed: profile.jobsCompleted || 0,
-          earnings: profile.totalEarnings || 0,
-          rating: profile.rating || 0,
-          reviews: profile.reviewCount || 0,
-        });
-      } else {
-        setStats({
-          completed,
-          earnings,
-          rating: reviewCount > 0 ? (totalRating / reviewCount).toFixed(1) : worker?.rating || 0,
-          reviews: reviewCount,
-        });
-      }
+      setActiveJobs(ongoing);
+
+      // Combine with worker's base stats from their profile
+      setStats({
+        completed: (worker?.jobsCompleted || 0) + completedCount,
+        earnings: (worker?.totalEarnings || 0) + totalEarnings,
+        rating: reviewCount > 0 
+          ? ((totalRating + (worker?.rating * worker?.reviewCount || 0)) / (reviewCount + (worker?.reviewCount || 0))).toFixed(1) 
+          : worker?.rating || 0,
+        reviews: (worker?.reviewCount || 0) + reviewCount,
+      });
     }, (error) => {
       console.error("Jobs snapshot error:", error);
     });
     return () => unsub();
-  }, [user, authLoading, worker?.rating, profile]);
+  }, [user, authLoading, worker]);
 
   const toggleOnline = async () => {
     if (!worker) return;
     const newStatus = !worker.isOnline;
     try {
-      await setDoc(
-        doc(db, "workers", user.uid),
-        { isOnline: newStatus },
-        { merge: true }
-      );
+      await setDoc(doc(db, "workers", user.uid), { isOnline: newStatus }, { merge: true });
       toast.success(newStatus ? "You're now online! 🟢" : "You're offline");
     } catch (err) {
       toast.error("Could not update status");
+    }
+  };
+
+  const handleMarkComplete = async (jobId) => {
+    try {
+      await setDoc(doc(db, "jobs", jobId), { 
+        status: "completed", 
+        completedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() 
+      }, { merge: true });
+      toast.success("Job completed! Earnings updated.");
+    } catch (err) {
+      toast.error("Failed to complete job");
     }
   };
 
@@ -269,6 +256,49 @@ export default function WorkerDashboard() {
           value={stats.reviews}
         />
       </div>
+
+      {/* Ongoing Jobs Section */}
+      {activeJobs.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Clock className="text-secondary w-5 h-5" /> Ongoing Jobs
+            </h2>
+            <span className="bg-secondary/10 text-secondary text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+              {activeJobs.length} Active
+            </span>
+          </div>
+          <div className="grid gap-4">
+            {activeJobs.map((job) => (
+              <div key={job.id} className="glass-card p-5 border-l-4 border-secondary flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="font-bold text-lg">{job.skill || "Service Request"}</h3>
+                  <div className="flex items-center gap-3 text-sm text-outline mt-1">
+                    <span className="flex items-center gap-1"><User size={14}/> {job.customerName}</span>
+                    <span className="flex items-center gap-1"><MapPin size={14}/> {job.location}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-xs text-outline uppercase font-bold">Earnings</p>
+                    <p className="font-bold text-primary">Rs. {job.price}</p>
+                  </div>
+                  <button 
+                    onClick={() => handleMarkComplete(job.id)}
+                    className="flex-1 sm:flex-none px-6 py-2.5 bg-green-500 text-white rounded-xl font-bold text-sm hover:bg-green-600 transition flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle size={18} /> Mark Complete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       <div className="grid md:grid-cols-2 gap-4">
         <Link

@@ -56,19 +56,22 @@ export default function WorkerActiveJobs() {
     }
 
     // Fetch jobs where this worker is accepted or in progress
+    // Removed orderBy to prevent indexing errors
     const q = query(
       collection(db, 'jobs'),
       where('workerId', '==', user.uid),
-      where('status', 'in', ['accepted', 'in_progress']),
-      orderBy('createdAt', 'desc')
+      where('status', 'in', ['accepted', 'in_progress'])
     );
 
     const unsub = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      // Sort in-memory
+      data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setJobs(data);
       setLoading(false);
     }, (error) => {
       console.error("Active jobs snapshot error:", error);
+      toast.error("Failed to load active jobs: " + error.message);
       setLoading(false);
     });
 

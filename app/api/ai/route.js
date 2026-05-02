@@ -1,6 +1,7 @@
 // app/api/ai/route.js
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { MOCK_WORKERS } from "@/lib/mockData";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs, limit } from "firebase/firestore";
 
 export async function POST(req) {
   try {
@@ -15,8 +16,6 @@ export async function POST(req) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    // This prompt tells Gemini to use its "General Knowledge" to match the user's problem
-    // to one of our available categories. No more hardcoded rules!
     const prompt = `You are the Brain of "Mazdoor Market". Your job is to understand any problem a user describes and match it to a professional category.
 
 User Query: "${input}"
@@ -58,13 +57,7 @@ INSTRUCTIONS:
       aiParsed = { category: null, location: null, preference: "none" };
     }
 
-    let workers = [...MOCK_WORKERS];
-
-    // STRICT MATCHING: If AI found a category, we ONLY show that category.
-    if (aiParsed.category && aiParsed.category !== "null") {
-      workers = workers.filter(w => w.skill.toLowerCase() === aiParsed.category.toLowerCase());
-    } else {
-      // If the AI couldn't find a logical match, we show nothing to keep results relevant.
+    if (!aiParsed.category || aiParsed.category === "null") {
       return Response.json({ 
         success: true, 
         parsed: aiParsed, 
@@ -74,13 +67,23 @@ INSTRUCTIONS:
       });
     }
 
-    // 3. Location Filtering
+    // Fetch real workers from Firestore
+    const workersRef = collection(db, "workers");
+    let q = query(workersRef, where("skill", "==", aiParsed.category.toLowerCase()));
+    
+    const querySnapshot = await getDocs(q);
+    let workers = [];
+    querySnapshot.forEach((doc) => {
+      workers.push({ id: doc.id, ...doc.data() });
+    });
+
+    // 3. Location Filtering (In-memory for flexibility)
     const targetLocation = aiParsed.location || userLocation;
     if (targetLocation && targetLocation !== 'Unknown') {
       const locLower = targetLocation.toLowerCase();
       const cityMatches = workers.filter(w => 
-        w.location.toLowerCase().includes(locLower) || 
-        locLower.includes(w.location.toLowerCase())
+        w.location?.toLowerCase().includes(locLower) || 
+        locLower.includes(w.location?.toLowerCase())
       );
       if (cityMatches.length > 0) workers = cityMatches;
     }
@@ -91,14 +94,14 @@ INSTRUCTIONS:
     } else if (aiParsed.preference === "best_rated") {
       workers.sort((a, b) => b.rating - a.rating);
     } else {
-      workers.sort((a, b) => b.rating - a.rating); // Default to quality
+      workers.sort((a, b) => (b.rating || 0) - (a.rating || 0)); // Default to quality
     }
 
     return Response.json({ 
       success: true, 
       parsed: aiParsed, 
-      workers: workers.slice(0, 10),
-      source: "ai_universal_matching" 
+      workers: workers.slice(0, 15),
+      source: "firestore_real_data" 
     });
 
   } catch (error) {

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, Clock, DollarSign } from 'lucide-react';
+import { X, Calendar, Clock, DollarSign, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 export default function HireModal({ worker, isOpen, onClose }) {
@@ -21,6 +21,13 @@ export default function HireModal({ worker, isOpen, onClose }) {
       return;
     }
 
+    // Check if the user is actually authenticated with Firebase Auth
+    // Mock logins (localStorage only) will fail Firestore writes
+    if (!auth.currentUser && !user.isDemo) {
+      toast.error('Session expired. Please login again.');
+      return;
+    }
+
     if (!date || !offerPrice) {
       toast.error('Please fill in the date and budget');
       return;
@@ -31,7 +38,7 @@ export default function HireModal({ worker, isOpen, onClose }) {
       const jobData = {
         customerId: user.uid,
         customerName: profile?.name || 'Customer',
-        workerId: worker.uid,
+        workerId: worker.id || worker.uid,
         workerName: worker.name,
         skill: worker.skill,
         status: 'pending',
@@ -46,13 +53,23 @@ export default function HireModal({ worker, isOpen, onClose }) {
         address: profile?.address || '',
       };
 
-      await addDoc(collection(db, 'jobs'), jobData);
+      console.log("Sending job request:", jobData);
+      const docRef = await addDoc(collection(db, 'jobs'), jobData);
+      console.log("Job created with ID:", docRef.id);
       
       toast.success('Hiring request sent successfully!');
       onClose();
     } catch (error) {
-      console.error('Hiring error:', error);
-      toast.error('Failed to send request. Try again.');
+      console.error('Hiring error detail:', error);
+      
+      let errorMsg = 'Failed to send request.';
+      if (error.code === 'permission-denied') {
+        errorMsg = 'Firestore Rules Denied! Go to Firebase Console -> Firestore -> Rules and set "allow read, write: if true;"';
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      toast.error(errorMsg, { duration: 6000 });
     } finally {
       setLoading(false);
     }

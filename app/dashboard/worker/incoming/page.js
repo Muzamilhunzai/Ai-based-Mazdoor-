@@ -50,11 +50,11 @@ export default function WorkerIncomingJobs() {
     }
 
     // Query jobs where THIS worker is assigned and status is "pending"
+    // Removed orderBy temporarily to avoid Indexing errors in development
     const q = query(
       collection(db, "jobs"),
       where("workerId", "==", user.uid),
-      where("status", "==", "pending"),
-      orderBy("createdAt", "desc")
+      where("status", "==", "pending")
     );
 
     const unsubscribe = onSnapshot(
@@ -64,12 +64,14 @@ export default function WorkerIncomingJobs() {
           id: doc.id,
           ...doc.data(),
         }));
+        // Sort manually in memory for now
+        jobList.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         setJobs(jobList);
         setLoading(false);
       },
       (error) => {
         console.error("Error fetching incoming jobs:", error);
-        toast.error("Failed to load jobs.");
+        toast.error("Failed to load jobs: " + error.message);
         setLoading(false);
       }
     );

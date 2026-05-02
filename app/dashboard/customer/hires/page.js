@@ -19,9 +19,19 @@ export default function CustomerHires() {
 
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'jobs'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
+    // Removed orderBy to prevent indexing errors
+    const q = query(
+      collection(db, 'jobs'), 
+      where('customerId', '==', user.uid)
+    );
     const unsub = onSnapshot(q, snap => {
-      setJobs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Sort in-memory
+      data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setJobs(data);
+      setLoading(false);
+    }, (error) => {
+      console.error("Hires fetch error:", error);
       setLoading(false);
     });
     return unsub;
@@ -29,51 +39,119 @@ export default function CustomerHires() {
 
   const filtered = jobs.filter(j => filter === 'all' || j.status === filter);
   const handleComplete = async (jobId) => {
-    await updateDoc(doc(db, 'jobs', jobId), { status: 'completed', completedAt: serverTimestamp() });
-    toast.success('Job marked complete');
+    try {
+      await updateDoc(doc(db, 'jobs', jobId), { 
+        status: 'completed', 
+        completedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      toast.success('Job marked complete');
+    } catch (err) {
+      toast.error("Failed to update status");
+    }
   };
 
-  if (loading) return <div className="py-20"><LoadingSpinner size="large" /></div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <LoadingSpinner label="Loading your history..." />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div><h1 className="text-2xl font-bold dark:text-white">My Jobs</h1><p className="font-urdu text-primary">میرے کام</p></div>
-        <Link href="/customer/job-post" className="btn-primary text-sm">Post New Job</Link>
+    <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto pb-20 md:pb-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">My Hires & Jobs</h1>
+          <p className="font-urdu text-xl text-primary mt-1">میرے کام اور بھرتیاں</p>
+        </div>
+        <Link href="/dashboard/customer/job-post" className="btn-primary text-sm px-6 py-3 self-start">
+          Post New Job
+        </Link>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {['all','pending','accepted','completed'].map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-xl text-sm font-medium capitalize ${filter === f ? 'bg-primary text-white' : 'bg-white dark:bg-slate-700 text-gray-600'} transition-colors`}>{f}</button>
+
+      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+        {['all', 'pending', 'accepted', 'completed'].map(f => (
+          <button 
+            key={f} 
+            onClick={() => setFilter(f)} 
+            className={`px-5 py-2.5 rounded-full text-sm font-bold capitalize whitespace-nowrap transition-all ${
+              filter === f 
+                ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                : 'bg-white text-outline border border-outline-variant hover:bg-primary/5'
+            }`}
+          >
+            {f}
+          </button>
         ))}
       </div>
+
       {filtered.length === 0 ? (
-        <EmptyState icon="📋" title="No jobs yet" titleUrdu="ابھی تک کوئی کام نہیں" description="Post a job or hire a worker" />
+        <EmptyState 
+          icon="📋" 
+          title="No jobs yet" 
+          titleUrdu="ابھی تک کوئی کام نہیں" 
+          description="You haven't hired anyone yet. Start by searching or posting a job." 
+        />
       ) : (
-        filtered.map(job => (
-          <motion.div key={job.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6">
-            <div className="flex justify-between items-start mb-3">
-              <div><h3 className="font-bold text-lg">{job.title}</h3><p className="text-sm text-gray-500">{job.workerName || 'Not assigned'}</p></div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${job.status === 'completed' ? 'bg-green-100 text-green-700' : job.status === 'accepted' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>{job.status}</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4 text-sm text-gray-600 dark:text-gray-300">
-              <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {job.scheduledDate || 'Flexible'}</div>
-              <div className="flex items-center gap-2"><Clock className="w-4 h-4" /> {job.scheduledTime || 'Flexible'}</div>
-              <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {job.address || job.location}</div>
-              <div className="flex items-center gap-2"><DollarSign className="w-4 h-4" /> Rs. {job.budget}</div>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{job.description}</p>
-            <div className="flex gap-2">
-              {job.status === 'accepted' && (
-                <button onClick={() => handleComplete(job.id)} className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600 transition-colors">
-                  <CheckCircle className="w-4 h-4" /> Mark Complete
-                </button>
+        <div className="space-y-4">
+          {filtered.map(job => (
+            <motion.div 
+              key={job.id} 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className="glass-card p-5 md:p-6 rounded-2xl border-l-4 border-primary"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="font-bold text-lg">{job.skill || job.title}</h3>
+                  <div className="flex items-center gap-2 text-sm text-primary font-medium mt-1">
+                    <User className="w-4 h-4" />
+                    <span>Worker: {job.workerName || 'Looking for someone...'}</span>
+                  </div>
+                </div>
+                <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${
+                  job.status === 'completed' 
+                    ? 'bg-green-100 text-green-700' 
+                    : job.status === 'accepted' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'bg-yellow-100 text-yellow-700'
+                }`}>
+                  {job.status}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5 text-sm text-outline">
+                <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {job.scheduledDate || 'Flexible'}</div>
+                <div className="flex items-center gap-2"><Clock className="w-4 h-4" /> {job.scheduledTime || 'Flexible'}</div>
+                <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {job.address || job.location || 'Lahore'}</div>
+                <div className="flex items-center gap-2 font-bold text-on-surface"><DollarSign className="w-4 h-4 text-secondary" /> Rs. {job.budget}</div>
+              </div>
+
+              {job.description && (
+                <p className="text-sm text-outline-variant mb-5 line-clamp-2 italic">&quot;{job.description}&quot;</p>
               )}
-              <Link href={`/customer/messages?job=${job.id}`} className="flex items-center gap-2 glass-card px-4 py-2 text-sm font-medium hover:bg-white/90">
-                <MessageSquare className="w-4 h-4" /> Chat
-              </Link>
-            </div>
-          </motion.div>
-        ))
+
+              <div className="flex flex-wrap gap-2 pt-4 border-t border-outline-variant/10">
+                {job.status === 'accepted' && (
+                  <button 
+                    onClick={() => handleComplete(job.id)} 
+                    className="flex items-center gap-2 bg-green-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-green-600 transition shadow-lg shadow-green-500/20"
+                  >
+                    <CheckCircle className="w-4 h-4" /> Mark as Done
+                  </button>
+                )}
+                <Link 
+                  href="/dashboard/customer/messages" 
+                  className="flex items-center gap-2 glass-card px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-surface-container-low transition"
+                >
+                  <MessageSquare className="w-4 h-4 text-primary" /> Chat with Worker
+                </Link>
+              </div>
+            </motion.div>
+          ))}
+        </div>
       )}
     </div>
   );

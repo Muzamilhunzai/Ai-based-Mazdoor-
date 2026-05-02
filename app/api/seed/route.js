@@ -4,15 +4,20 @@ import { db } from "@/lib/firebase";
 import { doc, setDoc, collection, getDocs, writeBatch } from "firebase/firestore";
 
 const SKILLS = ["plumber", "electrician", "carpenter", "painter", "driver", "gardener", "cleaner", "cook", "barber", "tech_repair", "mechanic"];
-const CITIES = ["Lahore", "Karachi", "Islamabad", "Faisalabad", "Rawalpindi", "Multan", "Peshawar", "Sialkot", "Gujranwala", "Quetta"];
-const NAMES = ["Ahmad", "Ali", "Bilal", "Hamza", "Usman", "Umar", "Zaid", "Hassan", "Hussein", "Mustafa", "Ibrahim", "Sajid", "Rashid", "Kamran", "Faisal", "Arsalan", "Waseem", "Naveed", "Asif", "Zubair", "Imran", "Adnan", "Salman", "Rizwan", "Farhan", "Shahid", "Nasir", "Irfan", "Junaid", "Tariq"];
+const CITIES = ["Lahore", "Karachi", "Islamabad", "Faisalabad", "Rawalpindi", "Multan", "Peshawar", "Sialkot", "Gujranwala", "Quetta", "Murree", "Swat"];
+const NAMES = [
+  "Ahmad", "Ali", "Bilal", "Hamza", "Usman", "Umar", "Zaid", "Hassan", "Hussein", "Mustafa", 
+  "Ibrahim", "Sajid", "Rashid", "Kamran", "Faisal", "Arsalan", "Waseem", "Naveed", "Asif", "Zubair", 
+  "Imran", "Adnan", "Salman", "Rizwan", "Farhan", "Shahid", "Nasir", "Irfan", "Junaid", "Tariq",
+  "Muzamil", "Hussain", "Kashif", "Sohail", "Riaz", "Saad", "Talha", "Haris", "Umair", "Babar"
+];
 
 export async function GET() {
   try {
     const batch = writeBatch(db);
 
     // 1. Create Demo Customer
-    const customerId = "demo-customer-id";
+    const customerId = "demo-customer-id"; // This should match MOCK_DATA and Auth
     const customerData = {
       uid: customerId,
       name: "Demo Customer",
@@ -20,11 +25,12 @@ export async function GET() {
       role: "customer",
       phone: "03001234567",
       createdAt: new Date().toISOString(),
+      location: "Lahore"
     };
     batch.set(doc(db, "users", customerId), customerData);
 
     // 2. Create Demo Worker
-    const workerId = "demo-worker-id";
+    const workerId = "demo-worker-id"; // This should match MOCK_DATA and Auth
     const workerUserData = {
       uid: workerId,
       name: "Demo Worker",
@@ -32,28 +38,30 @@ export async function GET() {
       role: "worker",
       phone: "03007654321",
       createdAt: new Date().toISOString(),
+      location: "Lahore"
     };
     const workerProfileData = {
       ...workerUserData,
       skill: "electrician",
-      hourlyRate: 800,
+      hourlyRate: 850,
       isVerified: true,
-      rating: 4.8,
-      reviewCount: 25,
+      rating: 4.9,
+      reviewCount: 42,
       location: "Lahore",
       isOnline: true,
-      bio: "Professional electrician with 10 years of experience in house wiring and appliance repair.",
-      experience: 10,
-      jobsCompleted: 150,
-      totalEarnings: 120000,
+      bio: "Professional electrician with 12 years of experience. Expert in smart home wiring, UPS installation, and industrial electrical work. I guarantee high-quality service and safety.",
+      experience: 12,
+      jobsCompleted: 184,
+      totalEarnings: 245000,
+      categories: ["electrician", "tech_repair"]
     };
     batch.set(doc(db, "users", workerId), workerUserData);
     batch.set(doc(db, "workers", workerId), workerProfileData);
 
-    // 3. Create 30 Random Workers
-    for (let i = 0; i < 35; i++) {
+    // 3. Create 50 Random Workers
+    for (let i = 0; i < 50; i++) {
       const id = `worker-seed-${i}`;
-      const name = NAMES[i % NAMES.length] + " " + (i > 25 ? "Khan" : "Sheikh");
+      const name = NAMES[i % NAMES.length] + " " + (i % 3 === 0 ? "Khan" : i % 3 === 1 ? "Sheikh" : "Ahmed");
       const skill = SKILLS[Math.floor(Math.random() * SKILLS.length)];
       const city = CITIES[Math.floor(Math.random() * CITIES.length)];
       
@@ -64,21 +72,23 @@ export async function GET() {
         role: "worker",
         phone: `0321${Math.floor(1000000 + Math.random() * 9000000)}`,
         createdAt: new Date().toISOString(),
+        location: city,
       };
 
       const workerData = {
         ...userData,
         skill: skill,
-        hourlyRate: Math.floor(Math.random() * 1000) + 300,
-        isVerified: Math.random() > 0.3,
-        rating: parseFloat((3.5 + Math.random() * 1.5).toFixed(1)),
-        reviewCount: Math.floor(Math.random() * 50),
+        hourlyRate: Math.floor(Math.random() * 1200) + 300,
+        isVerified: Math.random() > 0.2,
+        rating: parseFloat((3.8 + Math.random() * 1.2).toFixed(1)),
+        reviewCount: Math.floor(Math.random() * 100),
         location: city,
-        isOnline: Math.random() > 0.4,
-        bio: `Expert ${skill} available in ${city}. High quality work guaranteed.`,
+        isOnline: Math.random() > 0.3,
+        bio: `Expert ${skill} with ${Math.floor(Math.random() * 10) + 2} years of experience in ${city}. Available for immediate work.`,
         experience: Math.floor(Math.random() * 15) + 1,
-        jobsCompleted: Math.floor(Math.random() * 100),
-        totalEarnings: Math.floor(Math.random() * 50000),
+        jobsCompleted: Math.floor(Math.random() * 150),
+        totalEarnings: Math.floor(Math.random() * 100000),
+        categories: [skill]
       };
 
       batch.set(doc(db, "users", id), userData);
@@ -89,14 +99,16 @@ export async function GET() {
 
     return Response.json({ 
       success: true, 
-      message: "Database seeded with 35 workers and 2 demo accounts!",
+      message: "Database seeded with 50+ workers and 2 real demo accounts!",
       credentials: {
         customer: "customer@demo.com / password123",
         worker: "worker@demo.com / password123"
-      }
+      },
+      note: "Please ensure these accounts are created in Firebase Auth with 'password123' to use them as real accounts."
     });
   } catch (error) {
     console.error("Seeding error:", error);
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
