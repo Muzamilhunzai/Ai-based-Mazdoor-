@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 import { db } from "@/lib/firebase";
 import { doc, setDoc, collection, getDocs, writeBatch } from "firebase/firestore";
+import { headers } from "next/headers";
 
 const SKILLS = ["plumber", "electrician", "carpenter", "painter", "driver", "gardener", "cleaner", "cook", "barber", "tech_repair", "mechanic"];
 const CITIES = ["Lahore", "Karachi", "Islamabad", "Faisalabad", "Rawalpindi", "Multan", "Peshawar", "Sialkot", "Gujranwala", "Quetta", "Murree", "Swat"];
@@ -13,6 +14,14 @@ const NAMES = [
 ];
 
 export async function GET() {
+  // 1. Force Next.js to treat this as dynamic so it doesn't run during build
+  const headersList = headers();
+  
+  // 2. Extra safety: Return early if we detect a build environment
+  if (process.env.NEXT_PHASE === 'phase-production-build' || process.env.NODE_ENV === 'production' && !headersList.get('host')) {
+    return Response.json({ message: "Seeding skipped during build" });
+  }
+
   try {
     const batch = writeBatch(db);
 
