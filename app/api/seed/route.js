@@ -13,13 +13,19 @@ const NAMES = [
   "Muzamil", "Hussain", "Kashif", "Sohail", "Riaz", "Saad", "Talha", "Haris", "Umair", "Babar"
 ];
 
-export async function GET() {
-  // 1. Force Next.js to treat this as dynamic so it doesn't run during build
-  const headersList = headers();
-  
-  // 2. Extra safety: Return early if we detect a build environment
-  if (process.env.NEXT_PHASE === 'phase-production-build' || process.env.NODE_ENV === 'production' && !headersList.get('host')) {
-    return Response.json({ message: "Seeding skipped during build" });
+export async function GET(req) {
+  // 1. Extract query parameters
+  const { searchParams } = new URL(req.url);
+  const confirm = searchParams.get('confirm');
+
+  // 2. Skip if not confirmed (prevents execution during build/pre-render)
+  if (confirm !== 'true') {
+    return Response.json({ 
+      success: false, 
+      message: "Seeding requires manual confirmation to prevent accidental runs.",
+      action: "Please visit this URL with ?confirm=true to seed the database.",
+      example: "/api/seed?confirm=true"
+    });
   }
 
   try {
