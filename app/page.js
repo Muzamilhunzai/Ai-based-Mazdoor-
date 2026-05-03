@@ -11,7 +11,6 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import { useState, useEffect, useRef } from 'react';
 
-// Animated counter hook (JS version)
 function useAnimatedCounter(end, duration = 2000) {
   const [count, setCount] = useState(0);
   const [isInView, setIsInView] = useState(false);
